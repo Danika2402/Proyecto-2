@@ -20,9 +20,11 @@
 #include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
 
-#include "bitmaps.h"
 #include "font.h"
 #include "lcd_registers.h"
+
+#define SW1 PUSH1
+#define SW2 PUSH2
 
 #define LCD_RST PD_0
 #define LCD_CS PD_1
@@ -47,6 +49,14 @@ void LCD_Print(String text, int x, int y, int fontSize, int color, int backgroun
 void LCD_Bitmap(unsigned int x, unsigned int y, unsigned int width, unsigned int height, unsigned char bitmap[]);
 void LCD_Sprite(int x, int y, int width, int height, unsigned char bitmap[],int columns, int index, char flip, char offset);
 
+int Frame_rate = 0;
+
+byte push1 = 0;
+byte push2 = 0;
+
+int sprite1 = 0;
+int sprite2 = 0;
+
 int LCD_X = 320;
 int LCD_Y = 240;
 int Moving_rate = 1;
@@ -58,10 +68,18 @@ int Wall_gap = 80;
 int Wall_width = 10;
 
 extern uint8_t fondo[];
+extern uint8_t idle[];
+extern uint8_t equip[];
+extern uint8_t time_passed[];
+extern uint8_t Button_J1[];
+extern uint8_t Button_J2[];
 //***************************************************************************************************************************************
 // Inicialización
 //***************************************************************************************************************************************
 void setup() {
+  pinMode(SW1, INPUT_PULLUP);
+  pinMode(SW2, INPUT_PULLUP);
+  
   SysCtlClockSet(SYSCTL_SYSDIV_2_5|SYSCTL_USE_PLL|SYSCTL_OSC_MAIN|SYSCTL_XTAL_16MHZ);
   Serial.begin(9600);
   GPIOPadConfigSet(GPIO_PORTB_BASE, 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7, GPIO_STRENGTH_8MA, GPIO_PIN_TYPE_STD_WPU);
@@ -75,95 +93,57 @@ void setup() {
 //LCD_Sprite(int x, int y, int width, int height, unsigned char bitmap[],int columns, int index, char flip, char offset);
     
   //LCD_Bitmap(unsigned int x, unsigned int y, unsigned int width, unsigned int height, unsigned char bitmap[]);
-  //LCD_Bitmap(0, 0, 320, 240, fondo);
-  /*
-  for(int x = 0; x <319; x++){
-    LCD_Bitmap(x, 52, 16, 16, tile2);
-    LCD_Bitmap(x, 68, 16, 16, tile);
-    
-    LCD_Bitmap(x, 207, 16, 16, tile);
-    LCD_Bitmap(x, 223, 16, 16, tile);
-    x += 15;
- }*/
-  P_x[0] = LCD_X;
-  P_y[0] = (LCD_Y/2) - (Wall_gap/2);  
-  
-  P_x[1] = LCD_X + (LCD_X/2);
-  P_y[1] = (LCD_Y/2) - (Wall_gap/1);
+  LCD_Bitmap(0, 0, 320, 240, fondo);
+
 }
 //***************************************************************************************************************************************
 // Loop Infinito
 //***************************************************************************************************************************************
 void loop() {
-  /*for(int x = 0; x <320-36; x++){
+  push1 = digitalRead(SW1);
+  push2 = digitalRead(SW2);
+  Frame_rate += Moving_rate;
+
+  if(push1 == 0){
+    if(sprite1==0){
+      sprite1=1;
+    }else{
+      sprite1=0;
+    }
+  }else if(push2 == 0){
+    if(sprite2==0){
+      sprite2=1;
+    }else{
+      sprite2=0;
+    }
+  }
+  //for(int x = 0; x <320; x++){
     delay(5);
-    int anim2 = (x/5)%4;
-    int anim3 = (x/6)%3;
-   // LCD_Sprite(100,100,55,53,death,2,anim2,0,1);
-    //V_line( x -1, 100, 24, 0x421b);
+    int anim2 = (Frame_rate/17)%4; //idle
+    //int anim2 = (x/10)%4;
+    //LCD_Sprite(320-59,240-49,59,49,equip,4,anim3,0,0);
+    LCD_Sprite(320-59,240-49,59,49,idle,4,anim2,0,0);
+  //}
+/*
+  for(int x = 0; x<160; x++){
+    delay(5);
+    int anim2 = (x/17)%9;
+    LCD_Sprite(320-59,240-49,59,49,time_passed,9,anim2,0,0);
     
-    //LCD_Sprite(50,100,35,49,idle,4,anim2,0,1);
- 
-    LCD_Sprite(x,100,36,118,lazer,3,anim3,0,1);
-    V_line( x -1, 100, 118, 0x0000);
-
+  }*//*
+  for(int x = 0; x<46;x++){
+    delay(5);
+    int anim2 = (x/10)%4;
+    LCD_Sprite(320-59,240-49,59,49,equip,4,anim2,0,0);
+    
   }*/
-  /*for(int x = 320; x >0; x--){
-      delay(5);
-  
-      if(x>1){
-          //LCD_Sprite(x,100,36,118,lazer,3,anim3,0,1);
-        FillRect(x,100,36, 118, 0xffff);
-        V_line( x+36 -1, 100, 118, 0x0000);
-
-            if(x< 200){
-                FillRect(x+320-200,100,36, 118, 0xffff);
-                V_line( x +320-200+36 -1, 100, 118, 0x0000);
-        
-            }      
-      }
-    //V_line( 320 , 100, 118, 0xffff);
-    //FillRect(320 - 10,100,10, 118, 0xffff);
-
-    else{
-      FillRect(0,100,37, 118, 0x0000);
-    }
-  } */
-  /*xp = xp - Moving_rate;
-  FillRect(xp,0,36, 118, 0xffff);
-  V_line( xp+36 -1, 0, 118, 0x0000);
-
-  FillRect(xp,240-30,36, 30, 0xffff);
-  V_line( xp+36 -1, 240 - 30, 30, 0x0000);
-  
-  if(xp<=200){
-    FillRect(xp+100,0,36, 118, 0xffff);
-    V_line( xp+36+100 -1, 0, 118, 0x0000);
-
-    FillRect(xp+100,240-30,36, 30, 0xffff);
-    V_line( xp+36+100 -1, 240 - 30, 30, 0x0000);
-    
+  //LCD_Sprite(320-59,240-49,59,49,equip,4,3,0,0);
+  //LCD_Sprite(320-159,240-149,59,49,idle,4,1,0,0);
+  LCD_Sprite(148,185,49,14,Button_J1,2,sprite1,0,0);
+  LCD_Sprite(148,201,49,14,Button_J2,2,sprite2,0,0);
+  if(Frame_rate >320){
+    Frame_rate = 0;
   }
-
-  if(xp<=-36){
-    xp = 320;
-  }*/
-  for(int i = 0; i<2;i++){
-    FillRect(P_x[i],0,Wall_width,P_y[i],0xffff);
-    FillRect(P_x[i]+Wall_width+1, 0,Wall_width, P_y[i], 0x0000);
-
-    FillRect(P_x[i],P_y[i] + Wall_gap,Wall_width,LCD_Y - P_y[i] + Wall_gap,0xffff);
-    FillRect(P_x[i]+Wall_width+1, P_y[i] + Wall_gap,Wall_width,LCD_Y - P_y[i] + Wall_gap, 0x0000);
-    
-    if(P_x[i]<0){
-      P_y[i] = random(0,LCD_Y-Wall_gap);
-      P_x[i] = LCD_X;
-      FillRect(0,0,30,240,0x0000);
-      
-    }
-    P_x[i] -=4;
-  }
-  
 }
 //***************************************************************************************************************************************
 // Función para inicializar LCD

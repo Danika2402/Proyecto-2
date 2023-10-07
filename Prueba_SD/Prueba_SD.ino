@@ -6,6 +6,9 @@
  * IE3027: Electrónica Digital 2 - 2019
  */
 //***************************************************************************************************************************************
+#include <SPI.h>
+#include <SD.h>
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <TM4C123GH6PM.h>
@@ -20,7 +23,6 @@
 #include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
 
-#include "bitmaps.h"
 #include "font.h"
 #include "lcd_registers.h"
 
@@ -47,28 +49,31 @@ void LCD_Print(String text, int x, int y, int fontSize, int color, int backgroun
 void LCD_Bitmap(unsigned int x, unsigned int y, unsigned int width, unsigned int height, unsigned char bitmap[]);
 void LCD_Sprite(int x, int y, int width, int height, unsigned char bitmap[],int columns, int index, char flip, char offset);
 
-int LCD_X = 320;
-int LCD_Y = 240;
-int Moving_rate = 1;
+File dataFile;
+const int SS = PA_3;
 
-int P_x[2];
-int P_y[2];
 
-int Wall_gap = 80;
-int Wall_width = 10;
-
-extern uint8_t fondo[];
 //***************************************************************************************************************************************
 // Inicialización
 //***************************************************************************************************************************************
 void setup() {
+  
   SysCtlClockSet(SYSCTL_SYSDIV_2_5|SYSCTL_USE_PLL|SYSCTL_OSC_MAIN|SYSCTL_XTAL_16MHZ);
   Serial.begin(9600);
   GPIOPadConfigSet(GPIO_PORTB_BASE, 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7, GPIO_STRENGTH_8MA, GPIO_PIN_TYPE_STD_WPU);
   Serial.println("Inicio");
   LCD_Init();
   LCD_Clear(0x00);
-  
+  SPI.setModule(0);
+
+  Serial.print("Initializing SD card...");
+  pinMode(SS, OUTPUT);
+
+  if (!SD.begin(SS)) {
+    Serial.println("initialization failed!");
+    return;
+  }
+  Serial.println("initialization done.");
   //FillRect(0, 0, 319, 206, 0x0000);
   //String text1 = "Super Mario World!";
   //LCD_Print(text1, 20, 100, 2, 0xffff, 0x421b);
@@ -76,93 +81,12 @@ void setup() {
     
   //LCD_Bitmap(unsigned int x, unsigned int y, unsigned int width, unsigned int height, unsigned char bitmap[]);
   //LCD_Bitmap(0, 0, 320, 240, fondo);
-  /*
-  for(int x = 0; x <319; x++){
-    LCD_Bitmap(x, 52, 16, 16, tile2);
-    LCD_Bitmap(x, 68, 16, 16, tile);
-    
-    LCD_Bitmap(x, 207, 16, 16, tile);
-    LCD_Bitmap(x, 223, 16, 16, tile);
-    x += 15;
- }*/
-  P_x[0] = LCD_X;
-  P_y[0] = (LCD_Y/2) - (Wall_gap/2);  
-  
-  P_x[1] = LCD_X + (LCD_X/2);
-  P_y[1] = (LCD_Y/2) - (Wall_gap/1);
+  mapeo_SD("Fondo.txt");  
 }
 //***************************************************************************************************************************************
 // Loop Infinito
 //***************************************************************************************************************************************
 void loop() {
-  /*for(int x = 0; x <320-36; x++){
-    delay(5);
-    int anim2 = (x/5)%4;
-    int anim3 = (x/6)%3;
-   // LCD_Sprite(100,100,55,53,death,2,anim2,0,1);
-    //V_line( x -1, 100, 24, 0x421b);
-    
-    //LCD_Sprite(50,100,35,49,idle,4,anim2,0,1);
- 
-    LCD_Sprite(x,100,36,118,lazer,3,anim3,0,1);
-    V_line( x -1, 100, 118, 0x0000);
-
-  }*/
-  /*for(int x = 320; x >0; x--){
-      delay(5);
-  
-      if(x>1){
-          //LCD_Sprite(x,100,36,118,lazer,3,anim3,0,1);
-        FillRect(x,100,36, 118, 0xffff);
-        V_line( x+36 -1, 100, 118, 0x0000);
-
-            if(x< 200){
-                FillRect(x+320-200,100,36, 118, 0xffff);
-                V_line( x +320-200+36 -1, 100, 118, 0x0000);
-        
-            }      
-      }
-    //V_line( 320 , 100, 118, 0xffff);
-    //FillRect(320 - 10,100,10, 118, 0xffff);
-
-    else{
-      FillRect(0,100,37, 118, 0x0000);
-    }
-  } */
-  /*xp = xp - Moving_rate;
-  FillRect(xp,0,36, 118, 0xffff);
-  V_line( xp+36 -1, 0, 118, 0x0000);
-
-  FillRect(xp,240-30,36, 30, 0xffff);
-  V_line( xp+36 -1, 240 - 30, 30, 0x0000);
-  
-  if(xp<=200){
-    FillRect(xp+100,0,36, 118, 0xffff);
-    V_line( xp+36+100 -1, 0, 118, 0x0000);
-
-    FillRect(xp+100,240-30,36, 30, 0xffff);
-    V_line( xp+36+100 -1, 240 - 30, 30, 0x0000);
-    
-  }
-
-  if(xp<=-36){
-    xp = 320;
-  }*/
-  for(int i = 0; i<2;i++){
-    FillRect(P_x[i],0,Wall_width,P_y[i],0xffff);
-    FillRect(P_x[i]+Wall_width+1, 0,Wall_width, P_y[i], 0x0000);
-
-    FillRect(P_x[i],P_y[i] + Wall_gap,Wall_width,LCD_Y - P_y[i] + Wall_gap,0xffff);
-    FillRect(P_x[i]+Wall_width+1, P_y[i] + Wall_gap,Wall_width,LCD_Y - P_y[i] + Wall_gap, 0x0000);
-    
-    if(P_x[i]<0){
-      P_y[i] = random(0,LCD_Y-Wall_gap);
-      P_x[i] = LCD_X;
-      FillRect(0,0,30,240,0x0000);
-      
-    }
-    P_x[i] -=4;
-  }
   
 }
 //***************************************************************************************************************************************
@@ -514,4 +438,81 @@ void LCD_Sprite(int x, int y, int width, int height, unsigned char bitmap[],int 
     
     }
   digitalWrite(LCD_CS, HIGH);
+}
+
+
+
+
+
+int ASCII_HEX(int a) {
+  switch (a) {
+    case 48:
+      return 0;
+    case 49:
+      return 1;
+    case 50:
+      return 2;
+    case 51:
+      return 3;
+    case 52:
+      return 4;
+    case 53:
+      return 5;
+    case 54:
+      return 6;
+    case 55:
+      return 7;
+    case 56:
+      return 8;
+    case 57:
+      return 9;
+    case 97:
+      return 10;
+    case 98:
+      return 11;
+    case 99:
+      return 12;
+    case 100:
+      return 13;
+    case 101:
+      return 14;
+    case 102:
+      return 15;
+  }
+}
+
+
+void mapeo_SD(char doc[]) {
+  dataFile = SD.open(doc, FILE_READ);
+  int hex1 = 0;
+  int val1 = 0;       
+  int val2 = 0;
+  int mapear = 0;
+  int vertical = 0;
+  unsigned char maps[640];//320*240
+
+  if (dataFile) {
+    Serial.println("Abriendo el archivo");
+    while (dataFile.available() ) {
+      mapear = 0;
+      while (mapear < 640) {
+        hex1 = dataFile.read();
+        if (hex1 == 120) {
+          val1 = dataFile.read();
+          val2 = dataFile.read();
+          val1 = ASCII_HEX(val1);
+          val2 = ASCII_HEX(val2);
+          maps[mapear] = val1 * 16 + val2;
+          mapear++;
+        }
+      }
+      LCD_Bitmap(0, vertical, 320, 1, maps);
+      vertical++;
+    }
+    dataFile.close();
+    Serial.println("cierro");
+  } else {
+    Serial.println("error opening el doc");
+    dataFile.close();
+  }
 }
