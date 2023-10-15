@@ -24,7 +24,7 @@
 #include "lcd_registers.h"
 
 #define SW1 PUSH1
-#define SW2 PE_3
+#define SW2 PUSH2
 
 #define LCD_RST PD_0
 #define LCD_CS PD_1
@@ -51,28 +51,19 @@ void LCD_Sprite(int x, int y, int width, int height, unsigned char bitmap[],int 
 
 int Frame_rate = 0;
 
+int x = 100;
+int y = 100;
+
 byte push1 = 0;
 byte push2 = 0;
 
-int sprite1 = 0;
-int sprite2 = 0;
-
-int LCD_X = 320;
-int LCD_Y = 240;
 int Moving_rate = 1;
 
-int P_x[2];
-int P_y[2];
+const int Joystick = A0;
+int sensorX = 100;
 
-int Wall_gap = 80;
-int Wall_width = 10;
-
-extern uint8_t fondo[];
-extern uint8_t idle[];
-extern uint8_t equip[];
-extern uint8_t time_passed[];
-extern uint8_t Button_J1[];
-extern uint8_t Button_J2[];
+extern uint8_t Player1[];
+extern uint8_t Player2[];
 //***************************************************************************************************************************************
 // Inicialización
 //***************************************************************************************************************************************
@@ -93,7 +84,7 @@ void setup() {
 //LCD_Sprite(int x, int y, int width, int height, unsigned char bitmap[],int columns, int index, char flip, char offset);
     
   //LCD_Bitmap(unsigned int x, unsigned int y, unsigned int width, unsigned int height, unsigned char bitmap[]);
-  LCD_Bitmap(0, 0, 320, 240, fondo);
+  //LCD_Bitmap(0, 0, 320, 240, fondo);
 
 }
 //***************************************************************************************************************************************
@@ -102,27 +93,26 @@ void setup() {
 void loop() {
   push1 = digitalRead(SW1);
   push2 = digitalRead(SW2);
+
+  sensorX = map(analogRead(Joystick),0,4095,0,320);
+  
   Frame_rate += Moving_rate;
 
-  if(push1 == 0){
-    if(sprite1==0){
-      sprite1=1;
-    }else{
-      sprite1=0;
-    }
-  }else if(push2 == 0){
-    if(sprite2==0){
-      sprite2=1;
-    }else{
-      sprite2=0;
-    }
+  if(push2 == 0){
+    y++;
   }
   //for(int x = 0; x <320; x++){
-    delay(5);
-    int anim2 = (Frame_rate/17)%4; //idle
+    delay(50);
+    int anim2 = (Frame_rate/10)%2; //idle
     //int anim2 = (x/10)%4;
     //LCD_Sprite(320-59,240-49,59,49,equip,4,anim3,0,0);
-    LCD_Sprite(320-59,240-49,59,49,idle,4,anim2,0,0);
+    LCD_Sprite(sensorX,y,46,61,Player1,2,anim2,0,0);
+    FillRect(sensorX-1,y,3,61,0x0000); // |
+    FillRect(sensorX+46,y,3,61,0x0000);//    |
+    FillRect(sensorX,y-1,46,3,0x0000); //-
+    FillRect(sensorX,y+61,46,3,0x0000);//_
+        
+    //LCD_Sprite(200,100,46,61,Player2,2,anim2,0,0);
   //}
 /*
   for(int x = 0; x<160; x++){
@@ -137,12 +127,17 @@ void loop() {
     LCD_Sprite(320-59,240-49,59,49,equip,4,anim2,0,0);
     
   }*/
-  //LCD_Sprite(320-59,240-49,59,49,equip,4,3,0,0);
-  //LCD_Sprite(320-159,240-149,59,49,idle,4,1,0,0);
-  LCD_Sprite(148,185,49,14,Button_J1,2,sprite1,0,0);
-  LCD_Sprite(148,201,49,14,Button_J2,2,sprite2,0,0);
   if(Frame_rate >320){
     Frame_rate = 0;
+  }
+  if(sensorX>=320-46 || sensorX<=0){
+    FillRect(x,y,46,61,0x0000);
+    sensorX = 100;
+    
+  }
+  if(y>=240-61 || y<=0){
+    FillRect(x,y,46,61,0x0000);
+    y = 100;
   }
 }
 //***************************************************************************************************************************************

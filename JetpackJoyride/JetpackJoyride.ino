@@ -24,7 +24,7 @@
 #include "lcd_registers.h"
 
 #define SW1 PUSH1
-#define SW2 PE_3
+#define SW2 PUSH2
 
 #define LCD_RST PD_0
 #define LCD_CS PD_1
@@ -49,30 +49,36 @@ void LCD_Print(String text, int x, int y, int fontSize, int color, int backgroun
 void LCD_Bitmap(unsigned int x, unsigned int y, unsigned int width, unsigned int height, unsigned char bitmap[]);
 void LCD_Sprite(int x, int y, int width, int height, unsigned char bitmap[],int columns, int index, char flip, char offset);
 
-int Frame_rate = 0;
-
-byte push1 = 0;
-byte push2 = 0;
-
-int sprite1 = 0;
-int sprite2 = 0;
-
-int LCD_X = 320;
-int LCD_Y = 240;
-int Moving_rate = 1;
-
-int P_x[2];
-int P_y[2];
-
-int Wall_gap = 80;
-int Wall_width = 10;
-
 extern uint8_t fondo[];
 extern uint8_t idle[];
 extern uint8_t equip[];
 extern uint8_t time_passed[];
 extern uint8_t Button_J1[];
 extern uint8_t Button_J2[];
+extern uint8_t Player1[];
+extern uint8_t Player2[];
+
+int Frame_rate = 0;
+
+byte push1 = 0;
+byte push2 = 0;
+
+int button = 0;
+int Xplayer = 100;
+int Yplayer = 100;
+
+int LCD_X = 320;
+int LCD_Y = 240;
+int Moving_rate = 1;
+
+int game_state = 1;
+int Player;
+
+int Sprite[2];
+
+int Wall_gap = 80;
+int Wall_width = 10;
+
 //***************************************************************************************************************************************
 // Inicialización
 //***************************************************************************************************************************************
@@ -103,27 +109,63 @@ void loop() {
   push1 = digitalRead(SW1);
   push2 = digitalRead(SW2);
   Frame_rate += Moving_rate;
-
-  if(push1 == 0){
-    if(sprite1==0){
-      sprite1=1;
-    }else{
-      sprite1=0;
-    }
-  }else if(push2 == 0){
-    if(sprite2==0){
-      sprite2=1;
-    }else{
-      sprite2=0;
-    }
+  int anim1 = (Frame_rate/10)%2;
+  Serial.println(button);
+  if(game_state == 0){
+      int anim1 = (Frame_rate/10)%2;
+      if(push1 == 0){
+          Xplayer++;
+      }
+      if(push2 == 0){
+          Yplayer++;
+      }
+      if(button == 1){
+          Sprite_Player(Xplayer,Yplayer,anim1,Player2);
+      }else{
+          Sprite_Player(Xplayer,Yplayer,anim1,Player1);
+      }
+      
+      if(Xplayer>=320-46 || Xplayer<=0){
+          FillRect(Xplayer,Yplayer,46,61,0x0000);
+          Xplayer = 100;
+      }
+      if(Yplayer>=240-61 ||Yplayer<=0){
+          FillRect(Xplayer,Yplayer,46,61,0x0000);
+          Yplayer = 100;
+      }
+  }else{
+    LCD_Sprite(148,185,49,14,Button_J1,2,Sprite[0],0,0);
+    LCD_Sprite(148,201,49,14,Button_J2,2,Sprite[1],0,0);
+    
+      if(push1 == 0){
+        button++;
+        delay(5);
+          if(button >= 2){
+            button = 0;
+          }
+          if(button == 1){
+            Sprite[0] = 0;
+            Sprite[1] = 1;
+          }else{
+            Sprite[0] = 1;
+            Sprite[1] = 0;
+          }
+      }
+      if(push2 == 0){
+        LCD_Clear(0x0000);
+        game_state = 0;
+      }
+    
   }
-  //for(int x = 0; x <320; x++){
+
+
+  /*for(int x = 0; x <320; x++){
     delay(5);
     int anim2 = (Frame_rate/17)%4; //idle
     //int anim2 = (x/10)%4;
     //LCD_Sprite(320-59,240-49,59,49,equip,4,anim3,0,0);
     LCD_Sprite(320-59,240-49,59,49,idle,4,anim2,0,0);
-  //}
+  }*/
 /*
   for(int x = 0; x<160; x++){
     delay(5);
@@ -139,9 +181,8 @@ void loop() {
   }*/
   //LCD_Sprite(320-59,240-49,59,49,equip,4,3,0,0);
   //LCD_Sprite(320-159,240-149,59,49,idle,4,1,0,0);
-  LCD_Sprite(148,185,49,14,Button_J1,2,sprite1,0,0);
-  LCD_Sprite(148,201,49,14,Button_J2,2,sprite2,0,0);
-  if(Frame_rate >320){
+
+  if(Frame_rate >=320){
     Frame_rate = 0;
   }
 }
@@ -494,4 +535,20 @@ void LCD_Sprite(int x, int y, int width, int height, unsigned char bitmap[],int 
     
     }
   digitalWrite(LCD_CS, HIGH);
+}
+
+
+//****************************************
+
+//      FUNCIONES DEL JUEGO
+
+//****************************************
+
+void Sprite_Player(int x, int y,int anim, unsigned char bitmap[]){
+  
+  LCD_Sprite(x,y,46,61,bitmap,2,anim,0,0);
+  FillRect(x-1,y,3,61,0x0000); // |
+  FillRect(x+46,y,3,61,0x0000);//    |
+  FillRect(x,y-1,46,3,0x0000); //-
+  FillRect(x,y+61,46,3,0x0000);//_  
 }
