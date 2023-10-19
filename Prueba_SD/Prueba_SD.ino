@@ -26,6 +26,9 @@
 #include "font.h"
 #include "lcd_registers.h"
 
+#define SW1 PUSH1
+#define SW2 PUSH2
+
 #define LCD_RST PD_0
 #define LCD_CS PD_1
 #define LCD_RS PD_2
@@ -49,14 +52,24 @@ void LCD_Print(String text, int x, int y, int fontSize, int color, int backgroun
 void LCD_Bitmap(unsigned int x, unsigned int y, unsigned int width, unsigned int height, unsigned char bitmap[]);
 void LCD_Sprite(int x, int y, int width, int height, unsigned char bitmap[],int columns, int index, char flip, char offset);
 
-File dataFile;
+File myFile;
 const int SS = PA_3;
 
+static char Partida[] = "Partida 00.txt";
+
+int Num_Partida = 0;
+bool yes = false;
+
+int push1 = 0;
+int push2 = 0;
 
 //***************************************************************************************************************************************
 // Inicialización
 //***************************************************************************************************************************************
 void setup() {
+  
+  pinMode(SW1, INPUT_PULLUP);
+  pinMode(SW2, INPUT_PULLUP);
   
   SysCtlClockSet(SYSCTL_SYSDIV_2_5|SYSCTL_USE_PLL|SYSCTL_OSC_MAIN|SYSCTL_XTAL_16MHZ);
   Serial.begin(9600);
@@ -74,20 +87,54 @@ void setup() {
     return;
   }
   Serial.println("initialization done.");
-  //FillRect(0, 0, 319, 206, 0x0000);
-  //String text1 = "Super Mario World!";
+  //FillRect(0, 0, 320, 240, 0x0000);
+  //String text1 = "Guardar Partida?";
   //LCD_Print(text1, 20, 100, 2, 0xffff, 0x421b);
 //LCD_Sprite(int x, int y, int width, int height, unsigned char bitmap[],int columns, int index, char flip, char offset);
     
   //LCD_Bitmap(unsigned int x, unsigned int y, unsigned int width, unsigned int height, unsigned char bitmap[]);
   //LCD_Bitmap(0, 0, 320, 240, fondo);
-  mapeo_SD("Fondo.txt");  
+  //mapeo_SD("Fondo.txt");  
 }
 //***************************************************************************************************************************************
 // Loop Infinito
 //***************************************************************************************************************************************
 void loop() {
+  push1 = digitalRead(SW1);
+  push2 = digitalRead(SW2);
   
+  FillRect(0, 0, 320, 240, 0x0000);
+  String text1 = "Guardar Partida?";
+  LCD_Print(text1, 20, 100, 2, 0xffff, 0x421b);
+  if(push1 == 0){
+    yes = true;
+    delay(50);
+  }
+  if(yes == true){
+    Num_Partida+= 1;
+    
+    Partida[8] = (Num_Partida/10)%10;
+    Partida[9] = (Num_Partida/1)%10;
+    
+    FillRect(0, 0, 320, 240, 0x0000);
+    String text1 = "Wait a moment . . .";
+    LCD_Print(text1, 20, 100, 2, 0xffff, 0x421b);
+
+    myFile = SD.open("Partida.txt",FILE_WRITE);
+    if(myFile){
+      myFile.println("*********************************");
+      myFile.println("Jugador 1: 30");
+      myFile.println("Jugador 2: 15");
+      myFile.println("Ganador: ");
+      myFile.println("*********************************");
+      myFile.close();
+      //myFile.close();
+    }
+    yes = false;
+    FillRect(0, 0, 320, 240, 0x0000);
+    String text2 = "Done!!";
+    LCD_Print(text2, 20, 100, 2, 0xffff, 0x421b);
+  }
 }
 //***************************************************************************************************************************************
 // Función para inicializar LCD
@@ -481,7 +528,7 @@ int ASCII_HEX(int a) {
   }
 }
 
-
+/*
 void mapeo_SD(char doc[]) {
   dataFile = SD.open(doc, FILE_READ);
   int hex1 = 0;
@@ -515,4 +562,4 @@ void mapeo_SD(char doc[]) {
     Serial.println("error opening el doc");
     dataFile.close();
   }
-}
+}*/

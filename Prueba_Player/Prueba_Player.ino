@@ -26,6 +26,10 @@
 #define SW1 PUSH1
 #define SW2 PUSH2
 
+#define VALORX PE_2
+#define VALORY PE_3
+#define BOTON PF_1
+
 #define LCD_RST PD_0
 #define LCD_CS PD_1
 #define LCD_RS PD_2
@@ -62,17 +66,22 @@ int Moving_rate = 1;
 const int Joystick = A0;
 int sensorX = 100;
 
+int datox = 0;
+int datoy = 0;
+int datob = 0;
+
 extern uint8_t Player1[];
 extern uint8_t Player2[];
 //***************************************************************************************************************************************
 // Inicialización
 //***************************************************************************************************************************************
 void setup() {
-  pinMode(SW1, INPUT_PULLUP);
-  pinMode(SW2, INPUT_PULLUP);
+  pinMode(VALORX, INPUT);
+  pinMode(VALORY, INPUT);
+  pinMode(BOTON, INPUT);
   
   SysCtlClockSet(SYSCTL_SYSDIV_2_5|SYSCTL_USE_PLL|SYSCTL_OSC_MAIN|SYSCTL_XTAL_16MHZ);
-  Serial.begin(9600);
+  Serial.begin(115200);
   GPIOPadConfigSet(GPIO_PORTB_BASE, 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7, GPIO_STRENGTH_8MA, GPIO_PIN_TYPE_STD_WPU);
   Serial.println("Inicio");
   LCD_Init();
@@ -91,26 +100,44 @@ void setup() {
 // Loop Infinito
 //***************************************************************************************************************************************
 void loop() {
-  push1 = digitalRead(SW1);
-  push2 = digitalRead(SW2);
+  datox = analogRead(VALORX);
+  datoy = analogRead(VALORY);
+  datob = digitalRead(BOTON);
+  delay(50);
+Serial.println(datox);
+Serial.println(datoy);
+Serial.println(datob);
 
-  sensorX = map(analogRead(Joystick),0,4095,0,320);
-  
+
   Frame_rate += Moving_rate;
 
-  if(push2 == 0){
-    y++;
+  if(datox >= 2200){
+    x++;
+  }else if(datox <= 1800){
+    x--;
+  }else{
+    x = x;
   }
+
+  if(datoy >= 2200){
+    y++;
+  }else if(datoy <= 1800){
+    y--;
+  }else{
+    y = y;
+  }
+
+  
   //for(int x = 0; x <320; x++){
     delay(50);
     int anim2 = (Frame_rate/10)%2; //idle
     //int anim2 = (x/10)%4;
     //LCD_Sprite(320-59,240-49,59,49,equip,4,anim3,0,0);
-    LCD_Sprite(sensorX,y,46,61,Player1,2,anim2,0,0);
-    FillRect(sensorX-1,y,3,61,0x0000); // |
-    FillRect(sensorX+46,y,3,61,0x0000);//    |
-    FillRect(sensorX,y-1,46,3,0x0000); //-
-    FillRect(sensorX,y+61,46,3,0x0000);//_
+    LCD_Sprite(x,y,46,61,Player1,2,anim2,0,0);
+    FillRect(x-1,y,3,61,0x0000); // |
+    FillRect(x+46,y,3,61,0x0000);//    |
+    FillRect(x,y-1,46,3,0x0000); //-
+    FillRect(x,y+61,46,3,0x0000);//_
         
     //LCD_Sprite(200,100,46,61,Player2,2,anim2,0,0);
   //}
@@ -130,9 +157,9 @@ void loop() {
   if(Frame_rate >320){
     Frame_rate = 0;
   }
-  if(sensorX>=320-46 || sensorX<=0){
+  if(x>=320-46 || x<=0){
     FillRect(x,y,46,61,0x0000);
-    sensorX = 100;
+    x = 100;
     
   }
   if(y>=240-61 || y<=0){
@@ -489,4 +516,20 @@ void LCD_Sprite(int x, int y, int width, int height, unsigned char bitmap[],int 
     
     }
   digitalWrite(LCD_CS, HIGH);
+}
+
+/////////////////////////////////////////////////
+
+int MAP(int value, bool reverse){
+  if(value >= 2200){
+    value = map(value,2200,4095,127,254);
+  }else if(value <=1800){
+    value = (value == 0 ? 0 : map(value,1800,0,127,0));
+  }else{
+    value = 127;
+  }
+  if(reverse){
+    value = 254- value;
+  }
+  return value;
 }

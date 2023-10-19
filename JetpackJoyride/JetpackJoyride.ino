@@ -6,6 +6,9 @@
  * IE3027: Electrónica Digital 2 - 2019
  */
 //***************************************************************************************************************************************
+// Librerias
+//***************************************************************************************************************************************
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <TM4C123GH6PM.h>
@@ -22,9 +25,14 @@
 
 #include "font.h"
 #include "lcd_registers.h"
-
+#include <SPI.h>
+#include <SD.h>
 #define SW1 PUSH1
 #define SW2 PUSH2
+
+#define VALORX PE_2
+#define VALORY PE_3
+#define BOTON PF_1
 
 #define LCD_RST PD_0
 #define LCD_CS PD_1
@@ -45,9 +53,16 @@ void V_line(unsigned int x, unsigned int y, unsigned int l, unsigned int c);
 void Rect(unsigned int x, unsigned int y, unsigned int w, unsigned int h, unsigned int c);
 void FillRect(unsigned int x, unsigned int y, unsigned int w, unsigned int h, unsigned int c);
 void LCD_Print(String text, int x, int y, int fontSize, int color, int background);
-
 void LCD_Bitmap(unsigned int x, unsigned int y, unsigned int width, unsigned int height, unsigned char bitmap[]);
+
+//***************************************************************************************************************************************
+// Funciones del Juego
+//***************************************************************************************************************************************
 void LCD_Sprite(int x, int y, int width, int height, unsigned char bitmap[],int columns, int index, char flip, char offset);
+
+//***************************************************************************************************************************************
+// Variables
+//***************************************************************************************************************************************
 
 extern uint8_t fondo[];
 extern uint8_t idle[];
@@ -57,8 +72,14 @@ extern uint8_t Button_J1[];
 extern uint8_t Button_J2[];
 extern uint8_t Player1[];
 extern uint8_t Player2[];
+extern uint8_t death[];
 
 int Frame_rate = 0;
+
+int P_x[2];
+int P_y[2];
+
+int I = 0;
 
 byte push1 = 0;
 byte push2 = 0;
@@ -72,13 +93,24 @@ int LCD_Y = 240;
 int Moving_rate = 1;
 
 int game_state = 1;
-int Player;
+int Player = 0;
 
 int Sprite[2];
+int Num_Partida = 0;
 
-int Wall_gap = 80;
+int Wall_gap = 90;
 int Wall_width = 10;
 
+int Score = 0;
+
+int datox = 0;
+int datoy = 0;
+int datob = 0;
+
+File myFile;
+const int SS = PA_3;
+bool yes = false;
+bool Tarjeta_SD = false;
 //***************************************************************************************************************************************
 // Inicialización
 //***************************************************************************************************************************************
@@ -86,13 +118,26 @@ void setup() {
   pinMode(SW1, INPUT_PULLUP);
   pinMode(SW2, INPUT_PULLUP);
   
+  pinMode(VALORX, INPUT);
+  pinMode(VALORY, INPUT);
+  pinMode(BOTON, INPUT);
+  
   SysCtlClockSet(SYSCTL_SYSDIV_2_5|SYSCTL_USE_PLL|SYSCTL_OSC_MAIN|SYSCTL_XTAL_16MHZ);
   Serial.begin(9600);
   GPIOPadConfigSet(GPIO_PORTB_BASE, 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7, GPIO_STRENGTH_8MA, GPIO_PIN_TYPE_STD_WPU);
   Serial.println("Inicio");
   LCD_Init();
   LCD_Clear(0x00);
-  
+  SPI.setModule(0);
+  pinMode(SS, OUTPUT);
+
+  if (!SD.begin(SS)) {
+    //Serial.println("initialization failed!");
+    //return;
+    Tarjeta_SD = false;
+  }else{
+    Tarjeta_SD = true;
+  }
   //FillRect(0, 0, 319, 206, 0x0000);
   //String text1 = "Super Mario World!";
   //LCD_Print(text1, 20, 100, 2, 0xffff, 0x421b);
@@ -108,31 +153,109 @@ void setup() {
 void loop() {
   push1 = digitalRead(SW1);
   push2 = digitalRead(SW2);
+
+/*  datox = analogRead(VALORX);
+  datoy = analogRead(VALORY);
+  datob = digitalRead(BOTON);*/
+  
   Frame_rate += Moving_rate;
-  int anim1 = (Frame_rate/10)%2;
-  Serial.println(button);
+
   if(game_state == 0){
+    
       int anim1 = (Frame_rate/10)%2;
       if(push1 == 0){
-          Xplayer++;
-      }
-      if(push2 == 0){
           Yplayer++;
       }
-      if(button == 1){
-          Sprite_Player(Xplayer,Yplayer,anim1,Player2);
-      }else{
-          Sprite_Player(Xplayer,Yplayer,anim1,Player1);
+      if(push2 == 0){
+          Yplayer--;
       }
       
-      if(Xplayer>=320-46 || Xplayer<=0){
+      if(button == 1){
+          Player = 2;
+          Sprite_Player(Xplayer,Yplayer,anim1,Player2);
+      }else{
+          Player = 1;
+          Sprite_Player(Xplayer,Yplayer,anim1,Player1);
+      }
+        for(int i = 0;i<2;i++){
+          I = i;
+          FillRect(P_x[i],0,Wall_width,P_y[i],0xffff);
+          FillRect(P_x[i]+Wall_width+1, 0,Wall_width, P_y[i], 0x0000);
+      
+          FillRect(P_x[i],P_y[i] + Wall_gap,Wall_width,LCD_Y - P_y[i] + Wall_gap,0xffff);
+          FillRect(P_x[i]+Wall_width+1, P_y[i] + Wall_gap,Wall_width,LCD_Y - P_y[i] + Wall_gap, 0x0000);
+          
+          if(P_x[i]<0){
+            P_y[i] = random(0,LCD_Y-Wall_gap);
+            P_x[i] = LCD_X;
+            FillRect(0,0,30,240,0x0000);
+            
+          }
+          P_x[i] -=4;
+
+          if(P_x[i] == Xplayer){
+            Score++;
+          }
+      }
+
+      //(Xplayer>=320-46 || Xplayer<=0 || Yplayer>=240-61 ||Yplayer<=0)
+      if((Xplayer + 50> P_x[I] && Xplayer < P_x[I] + Wall_gap)
+        &&
+      (Yplayer< P_y[I] || Yplayer + 45 > P_y[I] + Wall_gap)){
           FillRect(Xplayer,Yplayer,46,61,0x0000);
+          for(int x = 0; x<320;x++){
+            int anim1 = (x/10)%2;
+            LCD_Sprite(Xplayer-(59-46),Yplayer,59,55,death,2,anim1,0,0);
+          }
+
+          LCD_Clear(0x0000);
+
+          String text5 = "Score:";
+          LCD_Print(text5, 20, 100, 2, 0xffff, 0x0000);
+          LCD_Print(String(Score), 20, 150, 2, 0xffff, 0x0000);
+          delay(600);          
+          LCD_Clear(0x0000);
+          
+          if(Tarjeta_SD == true){
+            String text1 = "Saving Game . . .";
+            LCD_Print(text1, 20, 100, 2, 0xffff, 0x0000);
+            myFile = SD.open("Partidas.txt",FILE_WRITE);
+            if(myFile){
+              myFile.println("*********************************");
+              myFile.print("Partida:");
+              myFile.print(Num_Partida);
+              myFile.println("");
+              myFile.print("Jugador ");
+              myFile.print(Player);
+              myFile.println("");
+              myFile.print("Puntaje: ");
+              myFile.print(Score);           
+              myFile.println("");
+              myFile.println("*********************************");
+              myFile.close();
+              delay(500);
+              String text2 = "Finished!!!      ";
+              LCD_Print(text2, 20, 100, 2, 0xffff, 0x0000);
+              delay(500);
+              LCD_Clear(0x0000);
+            }
+          }else{
+              String text3 = "No SD Card Found!";
+              LCD_Print(text3, 20, 100, 2, 0xffff, 0x0000);
+              delay(500);
+              LCD_Clear(0x0000);
+              
+          }
+          LCD_Bitmap(0, 0, 320, 240, fondo);
           Xplayer = 100;
-      }
-      if(Yplayer>=240-61 ||Yplayer<=0){
-          FillRect(Xplayer,Yplayer,46,61,0x0000);
           Yplayer = 100;
+          game_state = 1;
+          button = 0;
+          I = 0;
+          Score = 0;
+
       }
+
   }else{
     LCD_Sprite(148,185,49,14,Button_J1,2,Sprite[0],0,0);
     LCD_Sprite(148,201,49,14,Button_J2,2,Sprite[1],0,0);
@@ -153,8 +276,18 @@ void loop() {
       }
       if(push2 == 0){
         LCD_Clear(0x0000);
+        Num_Partida +=1;
         game_state = 0;
+
+        P_x[0] = LCD_X;
+        P_y[0] = (LCD_Y/2) - (Wall_gap/2);  
+        
+        P_x[1] = LCD_X + (LCD_X/2);
+        P_y[1] = (LCD_Y/2) - (Wall_gap/1);
+
+        delay(10);
       }
+      
     
   }
 
@@ -544,11 +677,15 @@ void LCD_Sprite(int x, int y, int width, int height, unsigned char bitmap[],int 
 
 //****************************************
 
+void DEATH(int x, int y){
+  
+}
+
 void Sprite_Player(int x, int y,int anim, unsigned char bitmap[]){
   
   LCD_Sprite(x,y,46,61,bitmap,2,anim,0,0);
-  FillRect(x-1,y,3,61,0x0000); // |
+  FillRect(x-2,y,3,61,0x0000); // |
   FillRect(x+46,y,3,61,0x0000);//    |
-  FillRect(x,y-1,46,3,0x0000); //-
+  FillRect(x,y-3,46,3,0x0000); //-
   FillRect(x,y+61,46,3,0x0000);//_  
 }

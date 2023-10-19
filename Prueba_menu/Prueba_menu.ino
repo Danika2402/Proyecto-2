@@ -24,7 +24,7 @@
 #include "lcd_registers.h"
 
 #define SW1 PUSH1
-#define SW2 PE_3
+#define SW2 PUSH2
 
 #define LCD_RST PD_0
 #define LCD_CS PD_1
