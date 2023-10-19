@@ -118,9 +118,9 @@ void setup() {
   pinMode(SW1, INPUT_PULLUP);
   pinMode(SW2, INPUT_PULLUP);
   
-  pinMode(VALORX, INPUT);
+  /*pinMode(VALORX, INPUT);
   pinMode(VALORY, INPUT);
-  pinMode(BOTON, INPUT);
+  pinMode(BOTON, INPUT);*/
   
   SysCtlClockSet(SYSCTL_SYSDIV_2_5|SYSCTL_USE_PLL|SYSCTL_OSC_MAIN|SYSCTL_XTAL_16MHZ);
   Serial.begin(9600);
@@ -676,10 +676,6 @@ void LCD_Sprite(int x, int y, int width, int height, unsigned char bitmap[],int 
 //      FUNCIONES DEL JUEGO
 
 //****************************************
-
-void DEATH(int x, int y){
-  
-}
 
 void Sprite_Player(int x, int y,int anim, unsigned char bitmap[]){
   
